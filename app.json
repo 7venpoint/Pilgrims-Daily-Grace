@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Daily Grace",
-    "slug": "daily-grace",
+    "name": "Pilgrim's Daily Grace",
+    "slug": "pilgrimsdailygrace",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "pilgrimsdailygrace",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,10 +15,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.myapp"
+      "bundleIdentifier": "com.pilgrimsdailygrace.app"
     },
     "android": {
-      "package": "com.myapp",
+      "package": "com.pilgrimsdailygrace.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
