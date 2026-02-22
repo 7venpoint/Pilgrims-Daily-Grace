@@ -40,8 +40,15 @@ export default function CategoryDetailScreen() {
   const renderAffirmation = ({ item, index }: { item: Affirmation; index: number }) => {
     const isMemorized = stats.memorizedVerseIds.includes(item.id);
     return (
-      <Animated.View entering={FadeIn.duration(300).delay(index * 60)}>
+      <Animated.View entering={FadeIn.duration(300).delay(Math.min(index, 5) * 60)}>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <View style={styles.dayBadgeRow}>
+            <View style={[styles.dayBadge, { backgroundColor: isDark ? `${iconColor}20` : `${info.color}12` }]}>
+              <Text style={[styles.dayBadgeText, { color: iconColor, fontFamily: 'Inter_600SemiBold' }]}>
+                Day {item.day}
+              </Text>
+            </View>
+          </View>
           <Text style={[styles.affirmationText, { color: theme.text, fontFamily: 'Inter_500Medium' }]}>
             {item.text}
           </Text>
@@ -107,9 +114,14 @@ export default function CategoryDetailScreen() {
         </Pressable>
         <View style={styles.headerCenter}>
           <Ionicons name={info.icon as any} size={20} color={iconColor} />
-          <Text style={[styles.headerTitle, { color: theme.text, fontFamily: 'Inter_600SemiBold' }]}>
-            {info.label}
-          </Text>
+          <View>
+            <Text style={[styles.headerTitle, { color: theme.text, fontFamily: 'Inter_600SemiBold' }]}>
+              {info.label}
+            </Text>
+            <Text style={[styles.headerSubtitle, { color: theme.textTertiary, fontFamily: 'Inter_400Regular' }]}>
+              {affirmationsList.length} daily affirmations
+            </Text>
+          </View>
         </View>
         <View style={{ width: 28 }} />
       </View>
@@ -131,8 +143,12 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
   headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerTitle: { fontSize: 17 },
+  headerSubtitle: { fontSize: 11, marginTop: 2 },
   listContent: { paddingHorizontal: 20, paddingTop: 8 },
   card: { borderRadius: 16, padding: 20, marginBottom: 14, borderWidth: 1 },
+  dayBadgeRow: { marginBottom: 10 },
+  dayBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  dayBadgeText: { fontSize: 11 },
   affirmationText: { fontSize: 16, lineHeight: 26, marginBottom: 14 },
   verseBox: { borderRadius: 12, padding: 14, marginBottom: 14 },
   verseText: { fontSize: 13, lineHeight: 20, fontStyle: 'italic', marginBottom: 6 },

@@ -7,11 +7,13 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, FadeIn } from 'react-native-reanimated';
 import { useApp } from '@/contexts/AppContext';
+import { useMusic } from '@/contexts/MusicContext';
 import { getDailyAffirmation, getDailyDevotional } from '@/constants/affirmations';
 import { getCurrentLevel, getLevelProgress } from '@/constants/badges';
 
 export default function HomeScreen() {
   const { theme, isDark, stats, markAffirmationRead, growthScore, currentLevel, levelProgress } = useApp();
+  const { isPlaying, musicEnabled, setMusicEnabled, togglePlayback, currentTrack, nextTrack } = useMusic();
   const insets = useSafeAreaInsets();
   const dailyAffirmation = getDailyAffirmation();
   const dailyDevotional = getDailyDevotional();
@@ -60,7 +62,30 @@ export default function HomeScreen() {
               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </Text>
           </View>
-          <View style={styles.streakContainer}>
+          <View style={styles.headerRight}>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                if (!musicEnabled) {
+                  setMusicEnabled(true);
+                } else {
+                  togglePlayback();
+                }
+              }}
+              onLongPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                if (musicEnabled && isPlaying) {
+                  nextTrack();
+                }
+              }}
+              style={[styles.musicButton, { backgroundColor: musicEnabled && isPlaying ? theme.tintLight : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)') }]}
+            >
+              <Ionicons
+                name={musicEnabled && isPlaying ? 'musical-notes' : 'musical-notes-outline'}
+                size={18}
+                color={musicEnabled && isPlaying ? theme.tint : theme.textTertiary}
+              />
+            </Pressable>
             <View style={[styles.streakBadge, { backgroundColor: theme.tintLight }]}>
               <Ionicons name="flame" size={18} color={theme.streak} />
               <Text style={[styles.streakText, { color: theme.streak, fontFamily: 'Inter_700Bold' }]}>
@@ -70,6 +95,33 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {musicEnabled && (
+          <Animated.View entering={FadeIn.duration(300)}>
+            <View style={[styles.musicBar, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+              <Ionicons name="musical-notes" size={16} color={theme.tint} />
+              <Text style={[styles.musicTrackName, { color: theme.textSecondary, fontFamily: 'Inter_500Medium' }]} numberOfLines={1}>
+                {currentTrack?.title || 'Worship Music'}
+              </Text>
+              <View style={styles.musicControls}>
+                <Pressable onPress={togglePlayback} hitSlop={8}>
+                  <Ionicons name={isPlaying ? 'pause' : 'play'} size={18} color={theme.tint} />
+                </Pressable>
+                <Pressable onPress={nextTrack} hitSlop={8}>
+                  <Ionicons name="play-skip-forward" size={16} color={theme.textTertiary} />
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setMusicEnabled(false);
+                  }}
+                  hitSlop={8}
+                >
+                  <Ionicons name="close" size={16} color={theme.textTertiary} />
+                </Pressable>
+              </View>
+            </View>
+          </Animated.View>
+        )}
+
         <Animated.View entering={FadeIn.duration(600)}>
           <LinearGradient
             colors={isDark ? ['#1E2A3A', '#162030'] : ['#F8F0E3', '#F0E6D4']}
@@ -78,9 +130,14 @@ export default function HomeScreen() {
             end={{ x: 1, y: 1 }}
           >
             <View style={styles.affirmationHeader}>
-              <Text style={[styles.cardLabel, { color: theme.tint, fontFamily: 'Inter_600SemiBold' }]}>
-                TODAY'S AFFIRMATION
-              </Text>
+              <View style={styles.affirmationHeaderLeft}>
+                <Text style={[styles.cardLabel, { color: theme.tint, fontFamily: 'Inter_600SemiBold' }]}>
+                  TODAY'S AFFIRMATION
+                </Text>
+                <Text style={[styles.dayLabel, { color: theme.tint, fontFamily: 'Inter_500Medium' }]}>
+                  Day {dailyAffirmation.day}
+                </Text>
+              </View>
               <Pressable onPress={handleShare} hitSlop={12}>
                 <Ionicons name="share-outline" size={20} color={theme.tint} />
               </Pressable>
@@ -245,12 +302,16 @@ function getGreeting() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { paddingHorizontal: 20 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
   greeting: { fontSize: 14, marginBottom: 4 },
   dateText: { fontSize: 20 },
-  streakContainer: {},
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  musicButton: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   streakBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, gap: 4 },
   streakText: { fontSize: 16 },
+  musicBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, marginBottom: 16, gap: 8 },
+  musicTrackName: { flex: 1, fontSize: 13 },
+  musicControls: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   affirmationCard: { borderRadius: 20, padding: 24, marginBottom: 16 },
   affirmationHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   cardLabel: { fontSize: 11, letterSpacing: 1.5 },
