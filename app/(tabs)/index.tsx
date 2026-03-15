@@ -314,6 +314,8 @@ const styles = StyleSheet.create({
   musicControls: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   affirmationCard: { borderRadius: 20, padding: 24, marginBottom: 16 },
   affirmationHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  affirmationHeaderLeft: { gap: 4 },
+  dayLabel: { fontSize: 12, opacity: 0.75 },
   cardLabel: { fontSize: 11, letterSpacing: 1.5 },
   affirmationText: { fontSize: 20, lineHeight: 30, marginBottom: 20 },
   verseBox: { borderRadius: 12, padding: 16, marginBottom: 20 },
