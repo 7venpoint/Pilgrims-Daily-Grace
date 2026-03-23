@@ -17,15 +17,51 @@ export default function ProfileScreen() {
     stats, earnedBadges, growthScore, currentLevel, levelProgress,
     reflections, deleteReflection,
   } = useApp();
-  const { user: authUser, isAuthenticated, isLoading: authLoading, login, logout } = useAuth();
+  const { user: authUser, isAuthenticated, register, login, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(userName);
 
+  const [authModal, setAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authUsername, setAuthUsername] = useState('');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authConfirm, setAuthConfirm] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authLoading2, setAuthLoading2] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
-  const displayName = (isAuthenticated && authUser?.name) ? authUser.name : (userName.trim() || 'Believer');
+  const displayName = (isAuthenticated && authUser?.username) ? authUser.username : (userName.trim() || 'Believer');
   const initials = displayName.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
+
+  const openAuthModal = (mode: 'login' | 'register') => {
+    setAuthMode(mode);
+    setAuthUsername(''); setAuthEmail(''); setAuthPassword(''); setAuthConfirm(''); setAuthError('');
+    setAuthModal(true);
+  };
+
+  const handleAuthSubmit = async () => {
+    setAuthError('');
+    if (!authUsername.trim() || !authPassword) {
+      setAuthError('Please fill in all required fields.');
+      return;
+    }
+    if (authMode === 'register' && authPassword !== authConfirm) {
+      setAuthError('Passwords do not match.');
+      return;
+    }
+    setAuthLoading2(true);
+    const err = authMode === 'register'
+      ? await register(authUsername.trim(), authEmail.trim(), authPassword)
+      : await login(authUsername.trim(), authPassword);
+    setAuthLoading2(false);
+    if (err) { setAuthError(err); return; }
+    setAuthModal(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
 
   const handleSaveName = () => {
     setUserName(nameInput.trim());
@@ -239,24 +275,24 @@ export default function ProfileScreen() {
           <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             <View style={styles.sectionHeaderRow}>
               <View style={[styles.sectionIconBg, { backgroundColor: isAuthenticated ? theme.accentLight : theme.tintLight }]}>
-                <Ionicons name={isAuthenticated ? 'person-circle-outline' : 'log-in-outline'} size={16} color={isAuthenticated ? theme.accent : theme.tint} />
+                <Ionicons name={isAuthenticated ? 'person-circle-outline' : 'person-add-outline'} size={16} color={isAuthenticated ? theme.accent : theme.tint} />
               </View>
               <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: 'Inter_700Bold' }]}>
-                Replit Account
+                My Account
               </Text>
             </View>
 
             {isAuthenticated && authUser ? (
               <View>
                 <View style={[styles.authRow, { borderColor: theme.border }]}>
-                  <View style={[styles.authAvatar, { backgroundColor: theme.accent }]}>
+                  <View style={[styles.authAvatar, { backgroundColor: theme.tint }]}>
                     <Text style={[styles.authAvatarText, { fontFamily: 'Inter_700Bold' }]}>
-                      {authUser.name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)}
+                      {authUser.username[0].toUpperCase()}
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.authName, { color: theme.text, fontFamily: 'Inter_600SemiBold' }]}>
-                      {authUser.name}
+                      {authUser.username}
                     </Text>
                     {!!authUser.email && (
                       <Text style={[styles.authEmail, { color: theme.textSecondary, fontFamily: 'Inter_400Regular' }]}>
@@ -266,13 +302,13 @@ export default function ProfileScreen() {
                   </View>
                   <View style={[styles.connectedBadge, { backgroundColor: theme.accentLight }]}>
                     <Ionicons name="checkmark-circle" size={14} color={theme.accent} />
-                    <Text style={[styles.connectedText, { color: theme.accent, fontFamily: 'Inter_600SemiBold' }]}>Connected</Text>
+                    <Text style={[styles.connectedText, { color: theme.accent, fontFamily: 'Inter_600SemiBold' }]}>Signed in</Text>
                   </View>
                 </View>
                 <Pressable
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    Alert.alert('Sign Out', 'Sign out of your Replit account?', [
+                    Alert.alert('Sign Out', 'Sign out of your account?', [
                       { text: 'Cancel', style: 'cancel' },
                       { text: 'Sign Out', style: 'destructive', onPress: logout },
                     ]);
@@ -284,19 +320,20 @@ export default function ProfileScreen() {
                 </Pressable>
               </View>
             ) : (
-              <View>
-                <Text style={[styles.authHint, { color: theme.textSecondary, fontFamily: 'Inter_400Regular' }]}>
-                  Sign in with your Replit account to sync your progress and access your profile across devices.
-                </Text>
+              <View style={styles.authButtonGroup}>
                 <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    login();
-                  }}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openAuthModal('login'); }}
                   style={[styles.authBtn, { borderColor: theme.tint, backgroundColor: theme.tintLight }]}
                 >
                   <Ionicons name="log-in-outline" size={18} color={theme.tint} />
-                  <Text style={[styles.authBtnText, { color: theme.tint, fontFamily: 'Inter_600SemiBold' }]}>Sign in with Replit</Text>
+                  <Text style={[styles.authBtnText, { color: theme.tint, fontFamily: 'Inter_600SemiBold' }]}>Sign In</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openAuthModal('register'); }}
+                  style={[styles.authBtn, { borderColor: theme.tint, backgroundColor: theme.tint }]}
+                >
+                  <Ionicons name="person-add-outline" size={18} color="#fff" />
+                  <Text style={[styles.authBtnText, { color: '#fff', fontFamily: 'Inter_600SemiBold' }]}>Create Account</Text>
                 </Pressable>
               </View>
             )}
@@ -308,6 +345,119 @@ export default function ProfileScreen() {
           <Text style={[styles.footerText, { color: theme.textTertiary, fontFamily: 'Inter_400Regular' }]}>Built by Sam Obayemi</Text>
         </View>
       </ScrollView>
+
+      <Modal visible={authModal} transparent animationType="slide" onRequestClose={() => setAuthModal(false)}>
+        <Pressable style={styles.sheetOverlay} onPress={() => setAuthModal(false)}>
+          <Pressable style={[styles.authModalCard, { backgroundColor: theme.card }]} onPress={() => {}}>
+            <View style={styles.authModalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.text, fontFamily: 'Inter_700Bold' }]}>
+                {authMode === 'login' ? 'Sign In' : 'Create Account'}
+              </Text>
+              <Pressable onPress={() => setAuthModal(false)} hitSlop={12}>
+                <Ionicons name="close" size={22} color={theme.textTertiary} />
+              </Pressable>
+            </View>
+
+            <View style={styles.authTabRow}>
+              <Pressable
+                onPress={() => { setAuthMode('login'); setAuthError(''); }}
+                style={[styles.authTab, authMode === 'login' && { borderBottomColor: theme.tint, borderBottomWidth: 2 }]}
+              >
+                <Text style={[styles.authTabText, { color: authMode === 'login' ? theme.tint : theme.textSecondary, fontFamily: authMode === 'login' ? 'Inter_600SemiBold' : 'Inter_400Regular' }]}>
+                  Sign In
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => { setAuthMode('register'); setAuthError(''); }}
+                style={[styles.authTab, authMode === 'register' && { borderBottomColor: theme.tint, borderBottomWidth: 2 }]}
+              >
+                <Text style={[styles.authTabText, { color: authMode === 'register' ? theme.tint : theme.textSecondary, fontFamily: authMode === 'register' ? 'Inter_600SemiBold' : 'Inter_400Regular' }]}>
+                  Create Account
+                </Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.authFormFields}>
+              <View style={[styles.authField, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F9FAFB', borderColor: theme.border }]}>
+                <Ionicons name="person-outline" size={17} color={theme.textTertiary} />
+                <TextInput
+                  style={[styles.authFieldInput, { color: theme.text, fontFamily: 'Inter_400Regular' }]}
+                  placeholder="Username"
+                  placeholderTextColor={theme.textTertiary}
+                  value={authUsername}
+                  onChangeText={setAuthUsername}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+
+              {authMode === 'register' && (
+                <View style={[styles.authField, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F9FAFB', borderColor: theme.border }]}>
+                  <Ionicons name="mail-outline" size={17} color={theme.textTertiary} />
+                  <TextInput
+                    style={[styles.authFieldInput, { color: theme.text, fontFamily: 'Inter_400Regular' }]}
+                    placeholder="Email (optional)"
+                    placeholderTextColor={theme.textTertiary}
+                    value={authEmail}
+                    onChangeText={setAuthEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    autoCorrect={false}
+                  />
+                </View>
+              )}
+
+              <View style={[styles.authField, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F9FAFB', borderColor: theme.border }]}>
+                <Ionicons name="lock-closed-outline" size={17} color={theme.textTertiary} />
+                <TextInput
+                  style={[styles.authFieldInput, { color: theme.text, fontFamily: 'Inter_400Regular' }]}
+                  placeholder="Password"
+                  placeholderTextColor={theme.textTertiary}
+                  value={authPassword}
+                  onChangeText={setAuthPassword}
+                  secureTextEntry={!showPass}
+                  autoCapitalize="none"
+                />
+                <Pressable onPress={() => setShowPass(v => !v)} hitSlop={10}>
+                  <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={17} color={theme.textTertiary} />
+                </Pressable>
+              </View>
+
+              {authMode === 'register' && (
+                <View style={[styles.authField, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F9FAFB', borderColor: theme.border }]}>
+                  <Ionicons name="lock-closed-outline" size={17} color={theme.textTertiary} />
+                  <TextInput
+                    style={[styles.authFieldInput, { color: theme.text, fontFamily: 'Inter_400Regular' }]}
+                    placeholder="Confirm Password"
+                    placeholderTextColor={theme.textTertiary}
+                    value={authConfirm}
+                    onChangeText={setAuthConfirm}
+                    secureTextEntry={!showPass}
+                    autoCapitalize="none"
+                  />
+                </View>
+              )}
+
+              {!!authError && (
+                <View style={styles.authErrorRow}>
+                  <Ionicons name="alert-circle-outline" size={15} color="#EF4444" />
+                  <Text style={[styles.authErrorText, { fontFamily: 'Inter_400Regular' }]}>{authError}</Text>
+                </View>
+              )}
+
+              <Pressable
+                onPress={handleAuthSubmit}
+                disabled={authLoading2}
+                style={[styles.authSubmitBtn, { backgroundColor: authLoading2 ? theme.border : theme.tint }]}
+              >
+                <Text style={[styles.authSubmitText, { fontFamily: 'Inter_600SemiBold' }]}>
+                  {authLoading2 ? 'Please wait...' : authMode === 'login' ? 'Sign In' : 'Create Account'}
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal visible={editingName} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -432,7 +582,7 @@ const styles = StyleSheet.create({
   themeOption: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 11, borderRadius: 14, marginBottom: 4 },
   themeOptionIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   themeOptionText: { fontSize: 15, flex: 1 },
-  authHint: { fontSize: 14, lineHeight: 22, marginBottom: 14 },
+  authButtonGroup: { gap: 10 },
   authBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 14, borderWidth: 1 },
   authBtnText: { fontSize: 15 },
   authRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, marginBottom: 14, borderBottomWidth: 1 },
@@ -442,6 +592,19 @@ const styles = StyleSheet.create({
   authEmail: { fontSize: 12 },
   connectedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   connectedText: { fontSize: 11 },
+  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  authModalCard: { width: '100%', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 36 },
+  authModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  authTabRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.08)', marginBottom: 20 },
+  authTab: { flex: 1, paddingBottom: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  authTabText: { fontSize: 15 },
+  authFormFields: { gap: 12 },
+  authField: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, height: 50, borderRadius: 14, borderWidth: 1 },
+  authFieldInput: { flex: 1, fontSize: 15 },
+  authErrorRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  authErrorText: { color: '#EF4444', fontSize: 13, flex: 1 },
+  authSubmitBtn: { height: 50, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginTop: 4 },
+  authSubmitText: { color: '#fff', fontSize: 16 },
   footer: { alignItems: 'center', marginTop: 16, gap: 4 },
   footerText: { fontSize: 12 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },

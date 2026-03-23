@@ -1,21 +1,11 @@
-import * as client from "openid-client";
+import bcrypt from "bcryptjs";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
-import type { Express, Request } from "express";
-import { createServer, type Server } from "node:http";
+import type { Express } from "express";
 import { Pool } from "pg";
-
-const ISSUER_URL = process.env.ISSUER_URL ?? "https://replit.com/oidc";
-
-function getBaseUrl(req: Request): string {
-  const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol || "https";
-  const host = (req.headers["x-forwarded-host"] as string) || (req.headers.host as string) || "";
-  return `${proto}://${host}`;
-}
-
-function getCallbackUrl(req: Request): string {
-  return `${getBaseUrl(req)}/api/auth/callback`;
-}
+import { db } from "./db";
+import { users } from "../shared/schema";
+import { eq, or } from "drizzle-orm";
 
 export function setupSession(app: Express) {
   const PgSession = connectPgSimple(session);
@@ -33,7 +23,7 @@ export function setupSession(app: Express) {
       cookie: {
         secure: process.env.NODE_ENV === "production",
         httpOnly: true,
-        maxAge: 7 * 24 * 60 * 60 * 1000,
+        maxAge: 30 * 24 * 60 * 60 * 1000,
         sameSite: "lax",
       },
     })
@@ -41,81 +31,111 @@ export function setupSession(app: Express) {
 }
 
 export function setupAuth(app: Express) {
-  app.get("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/register", async (req, res) => {
     try {
-      const clientId = req.hostname;
-      const config = await client.discovery(new URL(ISSUER_URL), clientId);
+      const { username, email, password } = req.body;
 
-      const codeVerifier = client.randomPKCECodeVerifier();
-      const codeChallenge = await client.calculatePKCECodeChallenge(codeVerifier);
-      const state = client.randomState();
+      if (!username || !password) {
+        return res.status(400).json({ error: "Username and password are required." });
+      }
+      if (username.length < 3) {
+        return res.status(400).json({ error: "Username must be at least 3 characters." });
+      }
+      if (password.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters." });
+      }
+
+      const existing = await db
+        .select()
+        .from(users)
+        .where(
+          username
+            ? eq(users.username, username.toLowerCase())
+            : eq(users.id, "none")
+        )
+        .limit(1);
+
+      if (existing.length > 0) {
+        return res.status(409).json({ error: "Username already taken." });
+      }
+
+      if (email) {
+        const existingEmail = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, email.toLowerCase()))
+          .limit(1);
+        if (existingEmail.length > 0) {
+          return res.status(409).json({ error: "Email already in use." });
+        }
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 12);
+      const [user] = await db
+        .insert(users)
+        .values({
+          username: username.toLowerCase(),
+          email: email ? email.toLowerCase() : null,
+          password: hashedPassword,
+        })
+        .returning();
 
       const sess = req.session as any;
-      sess.codeVerifier = codeVerifier;
-      sess.state = state;
-      sess.returnTo = (req.query.returnTo as string) || "/";
-
-      const redirectUri = getCallbackUrl(req);
-
-      const authUrl = client.buildAuthorizationUrl(config, {
-        redirect_uri: redirectUri,
-        scope: "openid profile email",
-        code_challenge: codeChallenge,
-        code_challenge_method: "S256",
-        state,
-      });
-
-      res.redirect(authUrl.toString());
-    } catch (err) {
-      console.error("Auth login error:", err);
-      res.status(500).json({ error: "Failed to initiate login. Replit Auth may not be enabled." });
-    }
-  });
-
-  app.get("/api/auth/callback", async (req, res) => {
-    try {
-      const clientId = req.hostname;
-      const config = await client.discovery(new URL(ISSUER_URL), clientId);
-
-      const sess = req.session as any;
-      const codeVerifier = sess.codeVerifier;
-      const state = sess.state;
-      const returnTo = sess.returnTo || "/";
-
-      delete sess.codeVerifier;
-      delete sess.state;
-      delete sess.returnTo;
-
-      const redirectUri = getCallbackUrl(req);
-      const currentUrl = new URL(`${getBaseUrl(req)}${req.url}`);
-
-      const tokens = await client.authorizationCodeGrant(
-        config,
-        currentUrl,
-        { pkceCodeVerifier: codeVerifier, expectedState: state },
-        { redirectUri }
-      );
-
-      const claims = tokens.claims();
-      if (!claims) throw new Error("No claims in token");
-
       sess.user = {
-        id: claims.sub,
-        name: (claims as any).name || (claims as any).username || claims.sub,
-        email: (claims.email as string) || "",
-        profileImage: (claims as any).profile_image || null,
+        id: user.id,
+        username: user.username,
+        email: user.email || "",
       };
 
-      res.redirect(returnTo);
+      res.json({ user: sess.user });
     } catch (err) {
-      console.error("Auth callback error:", err);
-      res.redirect("/?auth_error=1");
+      console.error("Register error:", err);
+      res.status(500).json({ error: "Registration failed. Please try again." });
     }
   });
 
-  app.get("/api/auth/logout", (req, res) => {
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+
+      if (!username || !password) {
+        return res.status(400).json({ error: "Username and password are required." });
+      }
+
+      const identifier = username.toLowerCase();
+      const found = await db
+        .select()
+        .from(users)
+        .where(or(eq(users.username, identifier), eq(users.email, identifier)))
+        .limit(1);
+
+      if (found.length === 0) {
+        return res.status(401).json({ error: "Invalid username or password." });
+      }
+
+      const user = found[0];
+      const valid = await bcrypt.compare(password, user.password);
+      if (!valid) {
+        return res.status(401).json({ error: "Invalid username or password." });
+      }
+
+      const sess = req.session as any;
+      sess.user = {
+        id: user.id,
+        username: user.username,
+        email: user.email || "",
+      };
+
+      res.json({ user: sess.user });
+    } catch (err) {
+      console.error("Login error:", err);
+      res.status(500).json({ error: "Login failed. Please try again." });
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
     req.session.destroy(() => {
-      res.redirect("/");
+      res.json({ success: true });
     });
   });
 
@@ -133,9 +153,8 @@ declare module "express-session" {
   interface SessionData {
     user?: {
       id: string;
-      name: string;
+      username: string;
       email: string;
-      profileImage: string | null;
     };
   }
 }

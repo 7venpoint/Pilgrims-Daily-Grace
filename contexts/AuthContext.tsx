@@ -1,29 +1,26 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Platform } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
 import { getApiUrl } from '@/lib/query-client';
 
 export interface AuthUser {
   id: string;
-  name: string;
+  username: string;
   email: string;
-  profileImage: string | null;
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: () => Promise<void>;
+  register: (username: string, email: string, password: string) => Promise<string | null>;
+  login: (username: string, password: string) => Promise<string | null>;
   logout: () => Promise<void>;
   refetch: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function getAuthUrl(path: string): string {
-  const base = getApiUrl();
-  return `${base}${path}`;
+function apiUrl(path: string): string {
+  return `${getApiUrl()}${path}`;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -33,9 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch(getAuthUrl('/api/auth/user'), {
-        credentials: 'include',
-      });
+      const res = await fetch(apiUrl('/api/auth/user'), { credentials: 'include' });
       const data = await res.json();
       if (data.isAuthenticated && data.user) {
         setUser(data.user);
@@ -44,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setIsAuthenticated(false);
       }
-    } catch (e) {
+    } catch {
       setUser(null);
       setIsAuthenticated(false);
     } finally {
@@ -56,38 +51,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchUser();
   }, []);
 
-  const login = async () => {
-    const loginUrl = getAuthUrl('/api/auth/login');
-    if (Platform.OS === 'web') {
-      window.location.href = loginUrl;
-    } else {
-      const result = await WebBrowser.openAuthSessionAsync(
-        loginUrl,
-        getApiUrl()
-      );
-      if (result.type === 'success') {
-        await fetchUser();
-      }
+  const register = async (username: string, email: string, password: string): Promise<string | null> => {
+    try {
+      const res = await fetch(apiUrl('/api/auth/register'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email: email || undefined, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) return data.error || 'Registration failed.';
+      setUser(data.user);
+      setIsAuthenticated(true);
+      return null;
+    } catch {
+      return 'Network error. Please try again.';
+    }
+  };
+
+  const login = async (username: string, password: string): Promise<string | null> => {
+    try {
+      const res = await fetch(apiUrl('/api/auth/login'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) return data.error || 'Login failed.';
+      setUser(data.user);
+      setIsAuthenticated(true);
+      return null;
+    } catch {
+      return 'Network error. Please try again.';
     }
   };
 
   const logout = async () => {
     try {
-      if (Platform.OS === 'web') {
-        window.location.href = getAuthUrl('/api/auth/logout');
-      } else {
-        await fetch(getAuthUrl('/api/auth/logout'), { credentials: 'include' });
-        setUser(null);
-        setIsAuthenticated(false);
-      }
-    } catch (e) {
-      setUser(null);
-      setIsAuthenticated(false);
-    }
+      await fetch(apiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include' });
+    } catch {}
+    setUser(null);
+    setIsAuthenticated(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, refetch: fetchUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, register, login, logout, refetch: fetchUser }}>
       {children}
     </AuthContext.Provider>
   );
