@@ -8,6 +8,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, FadeIn } from 'react-native-reanimated';
 import { useApp } from '@/contexts/AppContext';
 import { getDailyAffirmation, getDailyDevotional } from '@/constants/affirmations';
+import MiniMusicPlayer from '@/components/MiniMusicPlayer';
 
 export default function HomeScreen() {
   const { theme, isDark, stats, markAffirmationRead, growthScore, currentLevel, levelProgress } = useApp();
@@ -179,6 +180,10 @@ export default function HomeScreen() {
               <View style={[styles.progressBarFill, { width: `${Math.max(levelProgress * 100, 2)}%`, backgroundColor: theme.tint }]} />
             </View>
           </View>
+        </Animated.View>
+
+        <Animated.View entering={FadeIn.duration(500).delay(400)}>
+          <MiniMusicPlayer />
         </Animated.View>
 
         <Animated.View entering={FadeIn.duration(500).delay(450)} style={styles.quickActions}>

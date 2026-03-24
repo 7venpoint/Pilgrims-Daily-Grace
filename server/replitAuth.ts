@@ -11,6 +11,12 @@ export function setupSession(app: Express) {
   const PgSession = connectPgSimple(session);
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
+  // Trust Replit's reverse proxy so secure cookies work
+  app.set("trust proxy", 1);
+
+  const onReplit = !!(process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS);
+  const useSecure = onReplit || process.env.NODE_ENV === "production";
+
   app.use(
     session({
       store: new PgSession({
@@ -21,10 +27,10 @@ export function setupSession(app: Express) {
       resave: false,
       saveUninitialized: false,
       cookie: {
-        secure: process.env.NODE_ENV === "production",
+        secure: useSecure,
         httpOnly: true,
         maxAge: 30 * 24 * 60 * 60 * 1000,
-        sameSite: "lax",
+        sameSite: useSecure ? "none" : "lax",
       },
     })
   );

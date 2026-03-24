@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { fetch } from 'expo/fetch';
 import { getApiUrl } from '@/lib/query-client';
 
 export interface AuthUser {
@@ -20,7 +21,8 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function apiUrl(path: string): string {
-  return `${getApiUrl()}${path}`;
+  const base = getApiUrl().replace(/\/$/, '');
+  return `${base}${path}`;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -30,7 +32,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch(apiUrl('/api/auth/user'), { credentials: 'include' });
+      const res = await fetch(apiUrl('/api/auth/user'), {
+        credentials: 'include',
+      });
       const data = await res.json();
       if (data.isAuthenticated && data.user) {
         setUser(data.user);
@@ -64,8 +68,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user);
       setIsAuthenticated(true);
       return null;
-    } catch {
-      return 'Network error. Please try again.';
+    } catch (e) {
+      console.error('Register error:', e);
+      return 'Could not reach server. Please try again.';
     }
   };
 
@@ -82,14 +87,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user);
       setIsAuthenticated(true);
       return null;
-    } catch {
-      return 'Network error. Please try again.';
+    } catch (e) {
+      console.error('Login error:', e);
+      return 'Could not reach server. Please try again.';
     }
   };
 
   const logout = async () => {
     try {
-      await fetch(apiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include' });
+      await fetch(apiUrl('/api/auth/logout'), {
+        method: 'POST',
+        credentials: 'include',
+      });
     } catch {}
     setUser(null);
     setIsAuthenticated(false);
