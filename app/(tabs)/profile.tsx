@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Modal, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, TextInput, Modal, Alert, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -338,6 +338,40 @@ export default function ProfileScreen() {
               </View>
             )}
           </View>
+        </Animated.View>
+
+        <Animated.View entering={FadeIn.duration(400).delay(500)}>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              Linking.openURL('https://selar.com/showlove/samobayemi');
+            }}
+            style={({ pressed }) => [
+              styles.donationCard,
+              {
+                opacity: pressed ? 0.88 : 1,
+                transform: [{ scale: pressed ? 0.98 : 1 }],
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={['#059669', '#10B981']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.donationGradient}
+            >
+              <View style={styles.donationLeft}>
+                <View style={styles.donationIconWrap}>
+                  <Ionicons name="heart" size={22} color="#fff" />
+                </View>
+                <View>
+                  <Text style={[styles.donationTitle, { fontFamily: 'Inter_700Bold' }]}>Support Us</Text>
+                  <Text style={[styles.donationSub, { fontFamily: 'Inter_400Regular' }]}>Help keep Daily Grace going</Text>
+                </View>
+              </View>
+              <Ionicons name="arrow-forward-circle" size={26} color="rgba(255,255,255,0.85)" />
+            </LinearGradient>
+          </Pressable>
         </Animated.View>
 
         <View style={styles.footer}>
