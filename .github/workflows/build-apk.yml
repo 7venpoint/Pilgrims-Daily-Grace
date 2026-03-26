@@ -49,10 +49,10 @@ jobs:
           echo "APK_URL=$BUILD_URL" >> "$GITHUB_ENV"
 
       - name: Download APK
-        run: curl -L "$APK_URL" -o Pilgrim-Daily-Grace.apk
+        run: curl -L "$APK_URL" -o Pilgrims-Daily-Grace.apk
 
       - name: Upload APK to GitHub
         uses: actions/upload-artifact@v4
         with:
-          name: Pilgrim-Daily-Grace-APK
-          path: Pilgrim-Daily-Grace.apk
+          name: Pilgrims-Daily-Grace-APK
+          path: Pilgrims-Daily-Grace.apk
