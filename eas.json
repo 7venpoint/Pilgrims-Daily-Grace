@@ -1,1 +1,18 @@
-{\n  "build": {\n    "android": {\n      "development": {\n        "releaseChannel": "development",\n        "gradleCommand": "+ assembleDebug"\n      },\n      "preview": {\n        "releaseChannel": "preview",\n        "gradleCommand": "+ assembleRelease"\n      },\n      "production": {\n        "releaseChannel": "production",\n        "gradleCommand": "+ assembleRelease"\n      }\n    }\n  }\n}
+{
+  "build": {
+    "android": {
+      "development": {
+        "releaseChannel": "development",
+        "gradleCommand": "assembleDebug"
+      },
+      "preview": {
+        "releaseChannel": "preview",
+        "gradleCommand": "assembleRelease"
+      },
+      "production": {
+        "releaseChannel": "production",
+        "gradleCommand": "assembleRelease"
+      }
+    }
+  }
+}
