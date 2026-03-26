@@ -8,15 +8,24 @@
     "scheme": "pilgrimsdailygrace",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.pilgrimsdailygrace.app"
     },
+    
     "android": {
       "package": "com.pilgrimsdailygrace.app",
       "adaptiveIcon": {
@@ -26,9 +35,11 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       }
     },
+    
     "web": {
       "favicon": "./assets/images/favicon.png"
     },
+    
     "plugins": [
       [
         "expo-router",
@@ -39,10 +50,12 @@
       "expo-font",
       "expo-web-browser"
     ],
+    
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
+    
     "extra": {
       "eas": {
         "projectId": "56ffa5f8-0a44-49ec-a790-0979e93929c4"
