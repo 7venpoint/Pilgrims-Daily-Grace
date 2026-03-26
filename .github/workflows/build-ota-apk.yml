@@ -1,0 +1,82 @@
+name: Pilgrim's Daily Grace – OTA & APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  publish-and-build:
+    name: Publish JS & Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      # 3️⃣ Setup Expo & EAS CLI
+      - name: Setup Expo CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # 4️⃣ Install project dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # 5️⃣ Publish JS bundle (OTA)
+      - name: Publish OTA JS update
+        run: expo publish --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      # 6️⃣ Optional: Build APK if native changes included
+      - name: Build APK with EAS
+        if: contains(github.event.head_commit.message, '[native]')
+        run: |
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          eas build --platform android --profile preview --non-interactive --output "Pilgrims-Daily-Grace-$TIMESTAMP.apk"
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      # 7️⃣ Fetch APK download URL (if APK built)
+      - name: Fetch APK URL
+        if: contains(github.event.head_commit.message, '[native]')
+        run: |
+          echo "Fetching the latest finished Android build for Pilgrim's Daily Grace..."
+          BUILD_URL=$(eas build:list --platform android --status finished --limit 1 --json \
+            | jq -r '.[0].artifacts.buildUrl')
+
+          if [[ -z "$BUILD_URL" || "$BUILD_URL" == "null" ]]; then
+            echo "❌ Failed to retrieve APK download URL"
+            exit 1
+          fi
+
+          echo "✅ APK is ready!"
+          echo "APK_URL=$BUILD_URL"
+          echo "APK_URL=$BUILD_URL" >> $GITHUB_ENV
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      # 8️⃣ Download APK locally (optional)
+      - name: Download APK
+        if: contains(github.event.head_commit.message, '[native]')
+        run: curl -L $APK_URL -o "Pilgrims-Daily-Grace-$(date +%Y%m%d%H%M%S).apk"
+
+      # 9️⃣ Upload APK as GitHub artifact
+      - name: Upload APK artifact
+        if: contains(github.event.head_commit.message, '[native]')
+        uses: actions/upload-artifact@v4
+        with:
+          name: "Pilgrim's Daily Grace APK"
+          path: "Pilgrims-Daily-Grace-*.apk"
