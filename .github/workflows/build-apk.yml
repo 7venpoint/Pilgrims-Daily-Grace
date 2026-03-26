@@ -30,11 +30,11 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      # 4️⃣ Install dependencies
-      - name: Install project dependencies
+      # 4️⃣ Install project dependencies
+      - name: Install dependencies
         run: npm ci
 
-      # 5️⃣ Install jq (needed for parsing JSON)
+      # 5️⃣ Install jq for JSON parsing
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
@@ -44,7 +44,7 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
-      # 7️⃣ Get APK download URL from Expo
+      # 7️⃣ Fetch APK download URL
       - name: Fetch APK download URL
         run: |
           echo "Fetching the latest finished Android build..."
@@ -66,9 +66,9 @@ jobs:
       - name: Download APK
         run: curl -L $APK_URL -o Pilgrim-Daily-Grace.apk
 
-      # 9️⃣ Upload APK as GitHub artifact
+      # 9️⃣ Upload APK to GitHub as artifact
       - name: Upload APK to GitHub
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: Pilgrims-Daily-Grace-APK
-          path: Pilgrims-Daily-Grace.apk
+          name: Pilgrim-Daily-Grace-APK
+          path: Pilgrim-Daily-Grace.apk
