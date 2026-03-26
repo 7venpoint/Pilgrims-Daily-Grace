@@ -4,34 +4,71 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:   # allows manual trigger
+  workflow_dispatch:
 
 jobs:
   build:
+    name: Build Android APK (Preview)
     runs-on: ubuntu-latest
+
     steps:
-      - name: Check out code
-        uses: actions/checkout@v3
+      # 1️⃣ Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      # 2️⃣ Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
+          cache: 'npm'
 
-      - name: Install EAS CLI
-        run: npm install -g eas-cli
+      # 3️⃣ Setup Expo CLI & EAS CLI
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Install dependencies
-        run: npm install
+      # 4️⃣ Install dependencies
+      - name: Install project dependencies
+        run: npm ci
 
+      # 5️⃣ Install jq (needed for parsing JSON)
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      # 6️⃣ Build APK with EAS
       - name: Build APK
         run: eas build --platform android --profile preview --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Get APK download URL
+      # 7️⃣ Get APK download URL from Expo
+      - name: Fetch APK download URL
         run: |
-          BUILD_URL=$(eas build:list --platform android --status finished --json | jq -r '.[0].artifacts.buildUrl')
-          echo "APK download link: $BUILD_URL"
+          echo "Fetching the latest finished Android build..."
+          BUILD_URL=$(eas build:list --platform android --status finished --limit 1 --json \
+            | jq -r '.[0].artifacts.buildUrl')
+
+          if [[ -z "$BUILD_URL" || "$BUILD_URL" == "null" ]]; then
+            echo "❌ Failed to retrieve APK download URL"
+            exit 1
+          fi
+
+          echo "✅ APK is ready!"
+          echo "APK Download URL: $BUILD_URL"
+          echo "APK_URL=$BUILD_URL" >> $GITHUB_ENV
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      # 8️⃣ Download APK locally
+      - name: Download APK
+        run: curl -L $APK_URL -o Pilgrim-Daily-Grace.apk
+
+      # 9️⃣ Upload APK as GitHub artifact
+      - name: Upload APK to GitHub
+        uses: actions/upload-artifact@v3
+        with:
+          name: Pilgrims-Daily-Grace-APK
+          path: Pilgrims-Daily-Grace.apk
