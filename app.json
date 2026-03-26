@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Pilgrim's Daily Grace",
-    "slug": "pilgrimsdailygrace",
+    "slug": "pilgrims-daily-grace",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
