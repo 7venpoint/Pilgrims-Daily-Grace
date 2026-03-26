@@ -70,5 +70,5 @@ jobs:
       - name: Upload APK to GitHub
         uses: actions/upload-artifact@v4
         with:
-          name: Pilgrim-Daily-Grace-APK
-          path: Pilgrim-Daily-Grace.apk
+          name: Pilgrims-Daily-Grace-APK
+          path: Pilgrims-Daily-Grace.apk
