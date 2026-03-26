@@ -4,18 +4,19 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:   # allows manual trigger
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
-          node-version: 14
+          node-version: 18
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
@@ -24,12 +25,13 @@ jobs:
         run: npm install
 
       - name: Build APK
-        run: eas build --platform android --profile preview
+        run: eas build --platform android --profile preview --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apk
-          path: ./build/android/app/release/app-release.apk
+      - name: Get APK download URL
+        run: |
+          BUILD_URL=$(eas build:list --platform android --status finished --json | jq -r '.[0].artifacts.buildUrl')
+          echo "APK download link: $BUILD_URL"
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
