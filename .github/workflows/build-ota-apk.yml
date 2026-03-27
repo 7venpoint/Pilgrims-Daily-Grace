@@ -45,11 +45,60 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 6️⃣ Publish OTA JS update using npx (no global install needed)
+      # 6️⃣ Publish OTA JS update using npx
       - name: Publish OTA JS update
         run: npx expo publish --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      # 6️⃣a Smart push notifications: only if OTA changed
+      - name: Send push notifications on new OTA
+        run: |
+          echo "Checking latest OTA release..."
+          LATEST_RELEASE=$(npx expo publish:history --non-interactive --json | jq -r '.[0].id')
+          echo "Latest release ID: $LATEST_RELEASE"
+
+          LAST_RELEASE_FILE="last_release_id.txt"
+          if [ -f "$LAST_RELEASE_FILE" ]; then
+            LAST_RELEASE=$(cat $LAST_RELEASE_FILE)
+          else
+            LAST_RELEASE=""
+          fi
+
+          if [ "$LATEST_RELEASE" == "$LAST_RELEASE" ]; then
+            echo "No new OTA release. Skipping notifications."
+            exit 0
+          fi
+
+          echo "New OTA detected. Sending push notifications..."
+
+          # Fetch all push tokens from Supabase
+          TOKENS=$(curl -s \
+            -H "apikey: sb_publishable_e5xeYMVkzpIekQNv2N29Hw_bInB2EoO" \
+            -H "Authorization: Bearer sb_publishable_e5xeYMVkzpIekQNv2N29Hw_bInB2EoO" \
+            https://trvzirhhtnwdcrolglgn.supabase.co/rest/v1/push_tokens \
+            | jq -r '.[].token')
+
+          if [[ -z "$TOKENS" ]]; then
+            echo "No push tokens found."
+            exit 0
+          fi
+
+          for TOKEN in $TOKENS; do
+            curl -s -X POST https://exp.host/--/api/v2/push/send \
+              -H "Content-Type: application/json" \
+              -d '{
+                    "to": "'"$TOKEN"'",
+                    "title": "Pilgrim'\''s Daily Grace Update",
+                    "body": "A new update is available! Open the app to see it.",
+                    "sound": "default"
+                  }'
+          done
+
+          echo "✅ Push notifications sent!"
+
+          # Save latest release ID for next workflow run
+          echo "$LATEST_RELEASE" > $LAST_RELEASE_FILE
 
       # 7️⃣ Optional: Build APK if native changes included
       - name: Build APK with EAS
