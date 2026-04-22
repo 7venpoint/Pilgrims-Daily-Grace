@@ -1,142 +1,34 @@
-name: Pilgrim's Daily Grace – OTA & APK
+# This is an example configuration for OTA APK builds using EAS
+
+name: Build OTA APK
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
-  publish-and-build:
-    name: Publish JS & Build APK
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      # 1️⃣ Checkout code
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-      # 2️⃣ Setup Node.js
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v2
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: '14'
 
-      # 3️⃣ Cache node_modules
-      - name: Cache node_modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.npm
-            node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      # 4️⃣ Setup EAS CLI
-      - name: Setup EAS CLI
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
-      # 5️⃣ Install project dependencies
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
-      # 6️⃣ Publish OTA JS update using npx
-      - name: Publish OTA JS update
-        run: npx expo publish --non-interactive
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      - name: Build APK
+        run: npm run build
 
-      # 6️⃣a Smart push notifications: only if OTA changed
-      - name: Send push notifications on new OTA
-        run: |
-          echo "Checking latest OTA release..."
-          LATEST_RELEASE=$(npx expo publish:history --non-interactive --json | jq -r '.[0].id')
+      - name: Publish Update
+        run: npx eas update --auto  # Updated line
+
+      - name: Get Latest Release
+        run: |  
+          LATEST_RELEASE=$(npx eas update:list --non-interactive --json | jq -r '.[0].id')  # Updated line
           echo "Latest release ID: $LATEST_RELEASE"
-
-          LAST_RELEASE_FILE="last_release_id.txt"
-          if [ -f "$LAST_RELEASE_FILE" ]; then
-            LAST_RELEASE=$(cat $LAST_RELEASE_FILE)
-          else
-            LAST_RELEASE=""
-          fi
-
-          if [ "$LATEST_RELEASE" == "$LAST_RELEASE" ]; then
-            echo "No new OTA release. Skipping notifications."
-            exit 0
-          fi
-
-          echo "New OTA detected. Sending push notifications..."
-
-          # Fetch all push tokens from Supabase
-          TOKENS=$(curl -s \
-            -H "apikey: sb_publishable_e5xeYMVkzpIekQNv2N29Hw_bInB2EoO" \
-            -H "Authorization: Bearer sb_publishable_e5xeYMVkzpIekQNv2N29Hw_bInB2EoO" \
-            https://trvzirhhtnwdcrolglgn.supabase.co/rest/v1/push_tokens \
-            | jq -r '.[].token')
-
-          if [[ -z "$TOKENS" ]]; then
-            echo "No push tokens found."
-            exit 0
-          fi
-
-          for TOKEN in $TOKENS; do
-            curl -s -X POST https://exp.host/--/api/v2/push/send \
-              -H "Content-Type: application/json" \
-              -d '{
-                    "to": "'"$TOKEN"'",
-                    "title": "Pilgrim'\''s Daily Grace Update",
-                    "body": "A new update is available! Open the app to see it.",
-                    "sound": "default"
-                  }'
-          done
-
-          echo "✅ Push notifications sent!"
-
-          # Save latest release ID for next workflow run
-          echo "$LATEST_RELEASE" > $LAST_RELEASE_FILE
-
-      # 7️⃣ Optional: Build APK if native changes included
-      - name: Build APK with EAS
-        if: contains(github.event.head_commit.message, '[native]')
-        run: |
-          TIMESTAMP=$(date +%Y%m%d%H%M%S)
-          eas build --platform android --profile preview --non-interactive --output "Pilgrims-Daily-Grace-$TIMESTAMP.apk"
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-
-      # 8️⃣ Fetch APK download URL (if APK built)
-      - name: Fetch APK URL
-        if: contains(github.event.head_commit.message, '[native]')
-        run: |
-          echo "Fetching the latest finished Android build for Pilgrim's Daily Grace..."
-          BUILD_URL=$(eas build:list --platform android --status finished --limit 1 --json \
-            | jq -r '.[0].artifacts.buildUrl')
-
-          if [[ -z "$BUILD_URL" || "$BUILD_URL" == "null" ]]; then
-            echo "❌ Failed to retrieve APK download URL"
-            exit 1
-          fi
-
-          echo "✅ APK is ready!"
-          echo "APK_URL=$BUILD_URL"
-          echo "APK_URL=$BUILD_URL" >> $GITHUB_ENV
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-
-      # 9️⃣ Download APK locally (optional)
-      - name: Download APK
-        if: contains(github.event.head_commit.message, '[native]')
-        run: curl -L $APK_URL -o "Pilgrims-Daily-Grace-$(date +%Y%m%d%H%M%S).apk"
-
-      # 🔟 Upload APK as GitHub artifact
-      - name: Upload APK artifact
-        if: contains(github.event.head_commit.message, '[native]')
-        uses: actions/upload-artifact@v4
-        with:
-          name: "Pilgrim's Daily Grace APK"
-          path: "Pilgrims-Daily-Grace-*.apk"
