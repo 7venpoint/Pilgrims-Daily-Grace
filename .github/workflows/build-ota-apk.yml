@@ -1,6 +1,4 @@
-# This is an example configuration for OTA APK builds using EAS
-
-name: Build OTA APK
+name: Build OTA & APK
 
 on:
   push:
@@ -8,27 +6,65 @@ on:
       - main
 
 jobs:
-  build:
+  ota:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Install Node.js
-        uses: actions/setup-node@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: '14'
+          node-version: '20'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Build APK
-        run: npm run build
+      - name: Publish OTA update
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas update --auto
 
-      - name: Publish Update
-        run: npx eas update --auto  # Updated line
+  android:
+    runs-on: ubuntu-latest
+    needs: ota
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-      - name: Get Latest Release
-        run: |  
-          LATEST_RELEASE=$(npx eas update:list --non-interactive --json | jq -r '.[0].id')  # Updated line
-          echo "Latest release ID: $LATEST_RELEASE"
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Android APK
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build --platform android --profile release
+          # Download the APK file after build
+
+  ios:
+    runs-on: macos-latest
+    needs: ota
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build iOS IPA
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build --platform ios --profile release
+          # Download the IPA file after build
